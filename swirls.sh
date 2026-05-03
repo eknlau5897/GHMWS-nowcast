@@ -92,7 +92,7 @@ gl.ylabels_left = True
 ax.set_extent([112.956,115.291,21.328,23.487])
 ax.set_title(f"HKO 香港網格點臨近降雨預報（1小時）\n紅框範圍內：\n>=10mm/hr百分比：{float(percent_10*100)}%\n>=30mm/hr百分比：{float(percent_30*100)}%\n>=50mm/hr百分比：{float(percent_50*100)}%\n>=70mm/hr百分比：{float(percent_70*100)}%\n>=100mm/hr百分比：{float(percent_100*100)}%\n>=140mm/hr百分比：{float(percent_140*100)}%\nPlotted by GHMWS\ndata from HKO open data",size=16,loc='left')
 ax.set_title(f"開始時間：{data['Updated Date and Time (in Hong Kong Time)'][0]}\n結束時間：{data['Ending Date and Time (in Hong Kong Time)'][14641]}\nMax:{float(np.max(ds_1+ds_2))}mm",loc='right',size=16)
-plt.savefig(f'/Users/eknlau/VS_code/GHMWS/swirls/img_2d.png')
+plt.savefig(f'/Users/eknlau/VS_code/GHMWS-nowcast/swirls/img_2d.png')
 
 EOF_PYTHON
 
