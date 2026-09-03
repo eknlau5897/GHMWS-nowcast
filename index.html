@@ -1,0 +1,157 @@
+<!DOCTYPE html> 
+<html lang="zh-Hant" class="dark"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>香港氣象追擊網 | 臨近降雨預報</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script> 
+     
+    <script> 
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#0f172a',
+                    },
+                },
+            }
+        }
+    </script>
+     
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .model-card { @apply bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden; }
+            .model-img { @apply w-[85%] md:w-[75%] h-auto object-contain mx-auto rounded-lg border border-slate-800 bg-slate-950; }
+            .select-box { @apply bg-slate-800/90 border border-slate-700/80 px-5 py-3 rounded-lg cursor-pointer flex justify-between items-center text-lg font-medium text-slate-100 hover:border-slate-600 transition-colors; }
+            .select-dropdown { @apply absolute left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden text-slate-200; }
+            .select-option { @apply px-5 py-3 hover:bg-sky-600/30 cursor-pointer transition-colors text-slate-200 hover:text-white; }
+            .nav-link { @apply px-4 py-3 text-slate-200 hover:text-white hover:bg-sky-600/30 text-sm font-medium transition-all duration-200 rounded-md whitespace-nowrap; }
+        }
+
+        body { 
+            background-color: #0b0f19; 
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; 
+        } 
+    </style>
+</head> 
+
+<body class="min-h-screen flex flex-col antialiased">
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 py-3 sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+        <div class="container mx-auto px-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    香港氣象追擊網
+                    <span class="text-xs px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 font-normal">HKMETC</span>
+                </h1>
+                <p class="text-xs text-slate-400 tracking-wider">Hong Kong Meteorological Chaser Network</p>
+            </div>
+            <div class="hidden md:flex items-center gap-4 text-xs text-slate-400">
+                <span>系統運作正常</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-slate-900/80 border-b border-slate-800/80 sticky top-[65px] z-40 backdrop-blur-md">
+        <div class="container mx-auto px-4">
+            <ul class="flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none">
+                <li><a href="https://zax41006-bot.github.io/GHMWS/index.html" class="nav-link">首頁</a></li>
+                <li><a href="https://zax41006-bot.github.io/GHMWS/TC.html" class="nav-link">熱帶氣旋資訊</a></li>
+                <li><a href="https://eknlau5897.github.io/GHMWS-realtime/index.html" class="nav-link">實況天氣</a></li>
+                <li><a href="https://eknlau5897.github.io/GHMWS-global-model/index.html" class="nav-link">全球模式預報</a></li>
+                <li><a href="https://eknlau5897.github.io/GHMWS-meso-model/index.html" class="nav-link">中尺度模式預報</a></li>
+                <li><a href="https://zax41006-bot.github.io/GHMWS/ensemble.html" class="nav-link">集合模式預報</a></li>
+                <li><a href="https://eknlau5897.github.io/Earth_windy_2.0/demo/demo.html" class="nav-link">地球風場動畫2.0</a></li>
+                <li><a href="index.html" class="nav-link bg-sky-600/20 text-sky-400">臨近降雨預報</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6 flex-grow">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-white mb-1">臨近降雨預報</h2>
+            <p class="text-sky-400 text-sm font-medium mt-1">有重大天氣時自動更新</p>
+        </div>
+
+        <div class="model-card relative p-4">
+            <div class="max-w-md mx-auto relative mb-6">
+                <div class="relative">
+                    <div id="modelSelectBox" class="select-box">
+                        <span id="modelSelectText">HKO 臨近降雨預報</span>
+                        <span class="text-sky-400 text-xs">▼</span>
+                    </div>
+                    <div id="modelDropdown" class="select-dropdown hidden">
+                        <div class="select-option" data-model="swirls">HKO 臨近降雨預報</div>
+                        <div class="select-option" data-model="swirls_3d">HKO 臨近降雨預報 3D</div>
+                    </div>
+                </div>
+            </div>
+
+            <img id="modelImage" src="swirls/img_2d.png" class="model-img my-4" alt="臨近降雨預報圖像">
+        </div>
+
+        <!-- Instructions Box -->
+        <div class="model-card bg-slate-900/90 border border-slate-800 text-slate-300 p-5 mt-6">
+            <p class="font-bold mb-2 text-base text-sky-400">使用說明</p>
+            <div class="space-y-1 text-sm text-slate-400">
+                <p>• 資料僅供參考，請以官方發布為準</p>
+                <p>• 每 12 分鐘自動更新</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-6 mt-12 text-center text-slate-400 text-xs">
+        <p class="text-sm font-semibold text-slate-200">香港氣象追擊網 Hong Kong Meteorological Chaser Network (HKMETC)</p>
+        <p class="mt-2 text-slate-500">© 2026 香港氣象追擊網 版權所有</p>
+    </footer>
+
+    <script>
+        const img_2d = "img_2d";
+        const pathConfig = {
+            "swirls": "swirls/",
+            "swirls_3d": "swirls_3d/"
+        };
+
+        let currentFxx = img_2d;
+        let currentModel = "swirls";
+
+        const img = document.getElementById("modelImage");
+        const modelSelectText = document.getElementById("modelSelectText");
+
+        function updateImage() {
+            const basePath = pathConfig[currentModel];
+            img.src = basePath + currentFxx + ".png";
+        }
+
+        document.getElementById("modelSelectBox").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.getElementById("modelDropdown").classList.toggle("hidden");
+        });
+
+        document.querySelectorAll("#modelDropdown .select-option").forEach(option => {
+            option.addEventListener("click", () => {
+                currentModel = option.dataset.model;
+                modelSelectText.innerText = option.innerText;
+                document.getElementById("modelDropdown").classList.add("hidden");
+                updateImage();
+            });
+        });
+
+        document.addEventListener("click", (e) => {
+            const modelBox = document.getElementById("modelSelectBox");
+            if (!modelBox.contains(e.target)) {
+                document.getElementById("modelDropdown").classList.add("hidden");
+            }
+        });
+
+        updateImage();
+    </script>
+</body>
+</html>
