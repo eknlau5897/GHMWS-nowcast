@@ -1,28 +1,36 @@
 #!/bin/bash
 
+# Define absolute working directory
+PROJECT_DIR="/absolute/path/to/GHMWS-nowcast"
+cd "$PROJECT_DIR" || exit 1
+
+# Environment setup for Cron (helps locate git, python3.11, and display libraries)
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
 BRANCH="main"
 githubUser="eknlau5897"
 githubRepo="GHMWS-nowcast"
 
-# Explicitly match your path structure from the file tree
-IMAGE_OUT_DIR="./swirls"
-mkdir -p "$IMAGE_OUT_DIR"
+IMAGE_OUT_DIR="${PROJECT_DIR}/swirls"
+IMAGE_OUT_3D_DIR="${PROJECT_DIR}/swirls_3d"
+mkdir -p "$IMAGE_OUT_DIR" "$IMAGE_OUT_3D_DIR"
 
 echo "=================================================================="
-echo "   HKO GRIDDED NOWCAST DYNAMICS ENGINE (STRICT TREE STORAGE)     "
+echo "   HKO GRIDDED NOWCAST DYNAMICS ENGINE (CRON EXECUTION)          "
 echo "=================================================================="
+echo "--- 任務開始: $(date) ---"
 
-while true; do
-    echo "--- 任務開始: $(date) ---"
-
-    # ==============================================================================
-    # 1. PYTHON HKO RADAR ANALYSIS MATRIX
-    # ==============================================================================
-    python3.11 << 'EOF_PYTHON'
+# ==============================================================================
+# 1. PYTHON HKO RADAR ANALYSIS MATRIX
+# ==============================================================================
+python3.11 << EOF_PYTHON
 import os
 import pandas as pd 
 import xarray as xr
 from PIL import Image
+import matplotlib
+matplotlib.use('Agg') # Headless backend for cron execution
 import matplotlib.pyplot as plt
 import numpy as np
 from urllib.request import urlopen
@@ -65,9 +73,7 @@ try:
     percent_100=((ds_5+ds_6)>=100).mean()
     percent_140=((ds_5+ds_6)>=140).mean()
 
-    import matplotlib.font_manager
     matplotlib.rcParams['font.family'] = ['PingFang HK']
-    import matplotlib as mpl
     proj = ccrs.PlateCarree()
 
     fig = plt.figure(figsize=(12,12),layout='constrained')
@@ -95,27 +101,14 @@ try:
     ax.set_title(f"HKO 香港網格點臨近降雨預報（1小時）\n紅框範圍內：\n>=10mm/hr百分比：{float(percent_10*100)}%\n>=30mm/hr百分比：{float(percent_30*100)}%\n>=50mm/hr百分比：{float(percent_50*100)}%\n>=70mm/hr百分比：{float(percent_70*100)}%\n>=100mm/hr百分比：{float(percent_100*100)}%\n>=140mm/hr百分比：{float(percent_140*100)}%\nPlotted by HKMETC\ndata from HKO open data",size=16,loc='left')
     ax.set_title(f"開始時間：{data['Updated Date and Time (in Hong Kong Time)'][0]}\n結束時間：{data['Ending Date and Time (in Hong Kong Time)'][14641]}\nMax:{float(np.max(ds_1+ds_2))}mm",loc='right',size=16)
     
-    # Save directly to the relative swirls directory
     plt.savefig('./swirls/img_2d.png')
     plt.close()
     print("📈 Python Render Complete Engine Success.")
 
     import itertools
-    import cartopy.feature as cfeature
     from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.pyplot as plt
-    from matplotlib.collections import LineCollection, PolyCollection
+    from matplotlib.collections import PolyCollection
     from cartopy.mpl.patch import geos_to_path
-    import numpy as np
-    from matplotlib import cm
-    #import geopandas as gpd
-    import matplotlib.font_manager
-    matplotlib.rcParams['font.family'] = ['PingFang HK']
-    #from cartopy.io import shapereader
-    #from matplotlib.ticker import LinearLocator
-    from matplotlib import rcParams
-    #fig = plt.figure()
-    #url="https://data.weather.gov.hk/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv"
 
     fig = plt.figure(figsize=(14,12))
     ax = fig.add_subplot(projection='3d')
@@ -123,33 +116,24 @@ try:
     ax.set_ylim(bottom=21.328,top=23.487)
     ax.set_zlim(bottom=0,top=170)
     surf = ax.contourf(X, Y, (ds_1+ds_2), cmap='gist_ncar',levels=np.arange(0.1,170,0.1),alpha=1)
-                        #antialiased=False)
     concat = lambda iterable: list(itertools.chain.from_iterable(iterable))
 
     target_projection = ccrs.PlateCarree()
-
     feature = cfeature.NaturalEarthFeature('physical', 'land', '10m')
-
     geoms = feature.geometries()
-
-    geoms = [target_projection.project_geometry(geom, feature.crs)
-             for geom in geoms]
-
+    geoms = [target_projection.project_geometry(geom, feature.crs) for geom in geoms]
     paths = concat(geos_to_path(geom) for geom in geoms)
-
-
     polys = concat(path.to_polygons() for path in paths)
 
     lc = PolyCollection(polys, facecolor=None,edgecolor='k',alpha=0.3,closed=True)
-
     ax.add_collection3d(lc)
 
     fig.colorbar(surf,ax=ax, orientation='horizontal', shrink=0.74, pad=0)
     ax.view_init(elev=35)
-    ax.set_xlabel(u'Longitude (°E)', labelpad=10)
-    ax.set_ylabel(u'Latitude (°N)', labelpad=10)
-    ax.set_zlabel(u'mm', labelpad=20)
-    ax.set_title(f'香港網格點臨近降雨預報 3D（1小時)\nplot by HKMETC',fontsize=14,loc='left')
+    ax.set_xlabel('Longitude (°E)', labelpad=10)
+    ax.set_ylabel('Latitude (°N)', labelpad=10)
+    ax.set_zlabel('mm', labelpad=20)
+    ax.set_title('香港網格點臨近降雨預報 3D（1小時)\nplot by HKMETC',fontsize=14,loc='left')
     ax.set_title(f"開始時間：{data['Updated Date and Time (in Hong Kong Time)'][0]}\n結束時間：{data['Ending Date and Time (in Hong Kong Time)'][14641]}",loc='right',size=16)
     plt.savefig('./swirls_3d/img_2d.png')
     plt.close()
@@ -157,43 +141,34 @@ except Exception as e:
     print(f"❌ Python Data Processing Error: {e}")
 EOF_PYTHON
 
-    # ==============================================================================
-    # 2. STRICT TREE CLEANUP & AUTO-PUBLISH
-    # ==============================================================================
-    if [ -f "${IMAGE_OUT_DIR}/img_2d.png" ]; then
-        echo "[Clean Sync] Erasing historical tracking arrays to keep repository light..."
-        
-        # 1. Force clear the local git repository history tracking entirely
-        rm -rf .git
-        git gc --prune=now --aggressive 2>/dev/null
+# ==============================================================================
+# 2. STRICT TREE CLEANUP & AUTO-PUBLISH
+# ==============================================================================
+if [ -f "${IMAGE_OUT_DIR}/img_2d.png" ]; then
+    echo "[Clean Sync] Erasing historical tracking arrays to keep repository light..."
+    
+    rm -rf .git
+    git gc --prune=now --aggressive 2>/dev/null
 
-        # 2. Re-initialize a clean database layer
-        git init
-        git checkout -b "$BRANCH"
-        git remote add origin "https://github.com/${githubUser}/${githubRepo}.git"
+    git init
+    git checkout -b "$BRANCH"
+    git remote add origin "https://github.com/${githubUser}/${githubRepo}.git"
 
-        # 3. Stage ONLY the specific components from your exact workspace layout
-        git add ./swirls/img_2d.png
-        git add ./swirls_3d/img_2d.png
-        git add swirls.sh
-        
-        if [ -f "./GHMWS.png" ]; then git add GHMWS.png; fi
-        if [ -f "./index.html" ]; then git add index.html; fi
+    git add ./swirls/img_2d.png
+    git add ./swirls_3d/img_2d.png
+    git add swirls.sh
+    
+    if [ -f "./GHMWS.png" ]; then git add GHMWS.png; fi
+    if [ -f "./index.html" ]; then git add index.html; fi
 
-        # 4. Wrap everything into a single updated runtime commit tracking note
-        git commit -m "Auto-update: $(date) [History Purged - Strict Tree Build]"
+    git commit -m "Auto-update: $(date) [History Purged - Strict Tree Build]"
 
-        # 5. Overwrite remote GitHub files and assign upstream pipeline tracking
-        echo "[Engine Sync] Streaming clean workspace layer to GitHub..."
-        if git push --set-upstream origin "$BRANCH" --force; then
-            echo "✅ GitHub sync and branch auto-publishing complete!"
-        else
-            echo "❌ Force-push execution pipeline failure"
-        fi
+    echo "[Engine Sync] Streaming clean workspace layer to GitHub..."
+    if git push --set-upstream origin "$BRANCH" --force; then
+        echo "✅ GitHub sync and branch auto-publishing complete!"
     else
-        echo "⚠️ [Warning] Target radar imagery array missing. Skipping current Git execution frame."
+        echo "❌ Force-push execution pipeline failure"
     fi
-
-    echo "等待 12 分鐘..."
-    sleep 720
-done
+else
+    echo "⚠️ [Warning] Target radar imagery array missing. Skipping current Git execution frame."
+fi
