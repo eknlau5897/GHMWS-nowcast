@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Define absolute working directory
+PROJECT_DIR="eknlau5897/VS_code/GHMWS-nowcast"
 
 # Environment setup for Cron (helps locate git, python3.11, and display libraries)
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
