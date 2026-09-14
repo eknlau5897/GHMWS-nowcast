@@ -15,10 +15,6 @@ BRANCH="main"
 githubUser="eknlau5897"
 githubRepo="GHMWS-nowcast"
 
-# GitHub Personal Access Token (PAT) for automated HTTPS authentication.
-# You can hardcode your token here or export GITHUB_TOKEN in your terminal environment.
-GITHUB_TOKEN="${GITHUB_TOKEN:-YOUR_PERSONAL_ACCESS_TOKEN}"
-
 IMAGE_OUT_DIR="${PROJECT_DIR}/swirls"
 IMAGE_OUT_3D_DIR="${PROJECT_DIR}/swirls_3d"
 mkdir -p "$IMAGE_OUT_DIR" "$IMAGE_OUT_3D_DIR"
@@ -27,6 +23,10 @@ mkdir -p "$IMAGE_OUT_DIR" "$IMAGE_OUT_3D_DIR"
 INTERVAL_SECONDS=720
 
 echo "Starting HKO Gridded Nowcast Engine (Loop interval: 12 mins)..."
+
+# Ensure Git remote is configured using standard HTTPS
+git remote set-url origin "https://github.com/${githubUser}/${githubRepo}.git" 2>/dev/null || \
+git remote add origin "https://github.com/${githubUser}/${githubRepo}.git"
 
 # ==============================================================================
 # 12-MINUTE INFINITE EXECUTION LOOP
@@ -40,7 +40,7 @@ while true; do
     # --------------------------------------------------------------------------
     # 1. PYTHON HKO RADAR ANALYSIS MATRIX
     # --------------------------------------------------------------------------
-    python << 'EOF_PYTHON'
+    python3.11 << 'EOF_PYTHON'
 import os
 import pandas as pd 
 import xarray as xr
@@ -159,12 +159,12 @@ except Exception as e:
 EOF_PYTHON
 
     # --------------------------------------------------------------------------
-    # 2. LIGHTWEIGHT REPOSITORY SYNC & AUTOMATED HTTPS PUSH
+    # 2. REPOSITORY SYNC & STANDARD HTTPS PUSH
     # --------------------------------------------------------------------------
     if [ -f "${IMAGE_OUT_DIR}/img_2d.png" ]; then
         echo "[Sync Engine] Updating target tracking files..."
 
-        # Stage updated image arrays and web assets
+        # Stage updated assets
         git add ./swirls/img_2d.png
         git add ./swirls_3d/img_2d.png
         git add swirls.sh
@@ -172,18 +172,16 @@ EOF_PYTHON
         if [ -f "./GHMWS.png" ]; then git add GHMWS.png; fi
         if [ -f "./index.html" ]; then git add index.html; fi
 
-        # Amends the commit so repository size doesn't grow infinitely on your HTTP server
+        # Keeps commit history lightweight for HTTP deployment
         git commit --amend -m "Auto-update: $(date) [HTTP Live Layer]" || git commit -m "Auto-update: $(date)"
 
         echo "[Engine Sync] Streaming clean layer to GitHub HTTP origin..."
-        
-        # Build non-interactive HTTPS URL with your token
-        REMOTE_URL="https://${githubUser}:${GITHUB_TOKEN}@github.com/${githubUser}/${githubRepo}.git"
 
-        if git push "$REMOTE_URL" "$BRANCH" --force; then
-            echo "✅ GitHub HTTP layer auto-publishing complete!"
+        # Standard push relying on machine's saved Git credentials
+        if git push origin "$BRANCH" --force; then
+            echo "✅ GitHub auto-publishing complete!"
         else
-            echo "❌ Force-push HTTPS execution pipeline failure"
+            echo "❌ Force-push execution pipeline failure"
         fi
     else
         echo "⚠️ [Warning] Target radar imagery array missing. Skipping Git sync."
