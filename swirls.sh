@@ -40,7 +40,7 @@ while true; do
     # --------------------------------------------------------------------------
     # 1. PYTHON HKO RADAR ANALYSIS MATRIX
     # --------------------------------------------------------------------------
-    python << 'EOF_PYTHON'
+    /opt/anaconda3/bin/python << 'EOF_PYTHON'
 import os
 import pandas as pd 
 import xarray as xr
