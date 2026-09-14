@@ -1,9 +1,13 @@
 #!/bin/bash
 
-# Define absolute working directory
-PROJECT_DIR="eknlau5897/VS_code/GHMWS-nowcast"
+# ==============================================================================
+# CONFIGURATION & ENVIRONMENT SETUP
+# ==============================================================================
+# 1. Dynamically resolve script's directory so execution works from anywhere
+PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$PROJECT_DIR" || exit 1
 
-# Environment setup for Cron (helps locate git, python3.11, and display libraries)
+# Environment setup for loop execution (locates git, python3.11, display libraries)
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
@@ -11,25 +15,38 @@ BRANCH="main"
 githubUser="eknlau5897"
 githubRepo="GHMWS-nowcast"
 
+# GitHub Personal Access Token (PAT) for automated HTTPS authentication.
+# You can hardcode your token here or export GITHUB_TOKEN in your terminal environment.
+GITHUB_TOKEN="${GITHUB_TOKEN:-YOUR_PERSONAL_ACCESS_TOKEN}"
+
 IMAGE_OUT_DIR="${PROJECT_DIR}/swirls"
 IMAGE_OUT_3D_DIR="${PROJECT_DIR}/swirls_3d"
 mkdir -p "$IMAGE_OUT_DIR" "$IMAGE_OUT_3D_DIR"
 
-echo "=================================================================="
-echo "   HKO GRIDDED NOWCAST DYNAMICS ENGINE (CRON EXECUTION)          "
-echo "=================================================================="
-echo "--- 任務開始: $(date) ---"
+# Loop delay set to 12 minutes (720 seconds)
+INTERVAL_SECONDS=720
+
+echo "Starting HKO Gridded Nowcast Engine (Loop interval: 12 mins)..."
 
 # ==============================================================================
-# 1. PYTHON HKO RADAR ANALYSIS MATRIX
+# 12-MINUTE INFINITE EXECUTION LOOP
 # ==============================================================================
-which python << EOF_PYTHON
+while true; do
+    echo "=================================================================="
+    echo "   HKO GRIDDED NOWCAST DYNAMICS ENGINE (CONTINUOUS EXECUTION)    "
+    echo "=================================================================="
+    echo "--- 任務開始: $(date) ---"
+
+    # --------------------------------------------------------------------------
+    # 1. PYTHON HKO RADAR ANALYSIS MATRIX
+    # --------------------------------------------------------------------------
+    python3.11 << 'EOF_PYTHON'
 import os
 import pandas as pd 
 import xarray as xr
 from PIL import Image
 import matplotlib
-matplotlib.use('Agg') # Headless backend for cron execution
+matplotlib.use('Agg') # Headless backend for loop execution
 import matplotlib.pyplot as plt
 import numpy as np
 from urllib.request import urlopen
@@ -101,8 +118,8 @@ try:
     ax.set_title(f"開始時間：{data['Updated Date and Time (in Hong Kong Time)'][0]}\n結束時間：{data['Ending Date and Time (in Hong Kong Time)'][14641]}\nMax:{float(np.max(ds_1+ds_2))}mm",loc='right',size=16)
     
     plt.savefig('./swirls/img_2d.png')
-    plt.close()
-    print("📈 Python Render Complete Engine Success.")
+    plt.close('all') # Clear RAM allocations
+    print("📈 Python 2D Render Complete Success.")
 
     import itertools
     from mpl_toolkits.mplot3d import Axes3D
@@ -135,39 +152,43 @@ try:
     ax.set_title('香港網格點臨近降雨預報 3D（1小時)\nplot by HKMETC',fontsize=14,loc='left')
     ax.set_title(f"開始時間：{data['Updated Date and Time (in Hong Kong Time)'][0]}\n結束時間：{data['Ending Date and Time (in Hong Kong Time)'][14641]}",loc='right',size=16)
     plt.savefig('./swirls_3d/img_2d.png')
-    plt.close()
+    plt.close('all') # Clear RAM allocations
+    print("📈 Python 3D Render Complete Success.")
 except Exception as e:
     print(f"❌ Python Data Processing Error: {e}")
 EOF_PYTHON
 
-# ==============================================================================
-# 2. STRICT TREE CLEANUP & AUTO-PUBLISH
-# ==============================================================================
-if [ -f "${IMAGE_OUT_DIR}/img_2d.png" ]; then
-    echo "[Clean Sync] Erasing historical tracking arrays to keep repository light..."
-    
-    rm -rf .git
-    git gc --prune=now --aggressive 2>/dev/null
+    # --------------------------------------------------------------------------
+    # 2. LIGHTWEIGHT REPOSITORY SYNC & AUTOMATED HTTPS PUSH
+    # --------------------------------------------------------------------------
+    if [ -f "${IMAGE_OUT_DIR}/img_2d.png" ]; then
+        echo "[Sync Engine] Updating target tracking files..."
 
-    git init
-    git checkout -b "$BRANCH"
-    git remote add origin "https://github.com/${githubUser}/${githubRepo}.git"
+        # Stage updated image arrays and web assets
+        git add ./swirls/img_2d.png
+        git add ./swirls_3d/img_2d.png
+        git add swirls.sh
+        
+        if [ -f "./GHMWS.png" ]; then git add GHMWS.png; fi
+        if [ -f "./index.html" ]; then git add index.html; fi
 
-    git add ./swirls/img_2d.png
-    git add ./swirls_3d/img_2d.png
-    git add swirls.sh
-    
-    if [ -f "./GHMWS.png" ]; then git add GHMWS.png; fi
-    if [ -f "./index.html" ]; then git add index.html; fi
+        # Amends the commit so repository size doesn't grow infinitely on your HTTP server
+        git commit --amend -m "Auto-update: $(date) [HTTP Live Layer]" || git commit -m "Auto-update: $(date)"
 
-    git commit -m "Auto-update: $(date) [History Purged - Strict Tree Build]"
+        echo "[Engine Sync] Streaming clean layer to GitHub HTTP origin..."
+        
+        # Build non-interactive HTTPS URL with your token
+        REMOTE_URL="https://${githubUser}:${GITHUB_TOKEN}@github.com/${githubUser}/${githubRepo}.git"
 
-    echo "[Engine Sync] Streaming clean workspace layer to GitHub..."
-    if git push --set-upstream origin "$BRANCH" --force; then
-        echo "✅ GitHub sync and branch auto-publishing complete!"
+        if git push "$REMOTE_URL" "$BRANCH" --force; then
+            echo "✅ GitHub HTTP layer auto-publishing complete!"
+        else
+            echo "❌ Force-push HTTPS execution pipeline failure"
+        fi
     else
-        echo "❌ Force-push execution pipeline failure"
+        echo "⚠️ [Warning] Target radar imagery array missing. Skipping Git sync."
     fi
-else
-    echo "⚠️ [Warning] Target radar imagery array missing. Skipping current Git execution frame."
-fi
+
+    echo "--- 任務完成。Sleeping for 12 minutes (720 seconds)... ---"
+    sleep $INTERVAL_SECONDS
+done
