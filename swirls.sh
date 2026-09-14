@@ -23,7 +23,7 @@ echo "--- 任務開始: $(date) ---"
 # ==============================================================================
 # 1. PYTHON HKO RADAR ANALYSIS MATRIX
 # ==============================================================================
-python3.11 << EOF_PYTHON
+python << EOF_PYTHON
 import os
 import pandas as pd 
 import xarray as xr
