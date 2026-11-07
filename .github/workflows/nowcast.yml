@@ -1,0 +1,58 @@
+name: HKO Gridded Nowcast Engine (macOS)
+
+on:
+  schedule:
+    - cron: '*/12 * * * *'  # Runs automatically every 12 minutes
+  workflow_dispatch:        # Allows manual execution from the GitHub Actions tab
+
+jobs:
+  run-nowcast-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: write       # Grants permissions to push back to repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install System Dependencies (Homebrew)
+        run: |
+          brew install spatialindex geos proj
+          brew install --cask font-wqy-zenhei || true
+
+      - name: Install Python Requirements
+        run: |
+          pip install --upgrade pip
+          pip install pandas xarray pillow matplotlib numpy cartopy herbie-data
+
+      - name: Run Nowcast Engine Script
+        run: python nowcast.py
+
+      - name: Commit and Push (Single Commit Only)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.io"
+          
+          # Create an orphan branch to discard old commit bloat
+          git checkout --orphan temp_branch
+          
+          # Stage the newly rendered images
+          git add swirls/img_2d.png swirls_3d/img_2d.png
+          
+          if git diff --staged --quiet; then
+            echo "No changes in radar output to commit."
+          else
+            git commit -m "Auto-update radar imagery: $(date -u) [Latest Only]"
+            
+            # Replace main branch with the fresh single-commit branch
+            git branch -D main || true
+            git branch -m main
+            
+            # Force push to repository (clears storage footprint)
+            git push origin main --force
+          fi
